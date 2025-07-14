@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 	"go-start-project/model"
 )
 
@@ -40,18 +39,16 @@ func GetAllUsers(db *sql.DB) ([]model.User, error) {
 	return users, nil
 }
 
-func GetUserHashedPassword(db *sql.DB, email string) (string, error) {
+func GetUserHashedPassword(db *sql.DB, email string) (model.User, error) {
 	var user model.User
-
-	fmt.Println("Ищу пользователя с email:", email)
 
 	row := db.QueryRow("SELECT * FROM users WHERE email=?", email)
 
 	if err := row.Scan(&user.ID, &user.Name, &user.Surname, &user.MiddleName, &user.BirthDate, &user.PhoneNumber, &user.Email, &user.Password, &user.ConfirmPassword, &user.IsVerified, &user.CreatedAt); err != nil {
-		return "", err
+		return model.User{}, err
 	}
 
-	return user.Password, nil
+	return user, nil
 }
 
 func IsUserExists(db *sql.DB, email string) (bool, error) {

@@ -16,7 +16,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Проверка метода запроса
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -24,7 +24,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 
 		// Декодирование данных пользователя из тела запроса
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -32,7 +32,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 		isUserExists, _ := service.IsUserExists(db, user.Email)
 
 		if isUserExists {
-			http.Error(w, "User already exists", http.StatusBadRequest)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -41,7 +41,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 		err := validate.Struct(user)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -49,7 +49,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 		hashedPass, err := utils.HashPassword(user.Password)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
@@ -57,7 +57,7 @@ func Register(db *sql.DB) http.HandlerFunc {
 		
 		// Регистрация пользователя
 		if err := service.Register(db, &user); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
@@ -69,30 +69,30 @@ func Login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Проверка метода запроса
 		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 
-		var user model.User
+		var logoPass model.User
 
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if err := json.NewDecoder(r.Body).Decode(&logoPass); err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
 		// Получение пользователя по email
-		hashedPassword, err := service.GetUserHashedPassword(db, user.Email)
+		user, err := service.GetUserHashedPassword(db, logoPass.Email)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 
 		// Сравнение пароля
-		err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password))
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(logoPass.Password))
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
@@ -108,7 +108,7 @@ func GetAllUsers(db *sql.DB) http.HandlerFunc {
 		users, err := service.GetAllUsers(db)
 
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
