@@ -16,8 +16,9 @@ func main() {
 
 	// Auth routes
 	http.HandleFunc("/register", db.CORS(handler.Register(database)))
+	http.HandleFunc("/login", db.CORS(handler.Login(database)))
 	http.HandleFunc("/getUsers", db.CORS(handler.GetAllUsers(database)))
 
-	fmt.Println("Сервер запущен")
+	fmt.Println("Server successfully started")
 	http.ListenAndServe(":8080", nil)
 }
