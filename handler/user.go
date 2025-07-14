@@ -67,13 +67,15 @@ func Register(db *sql.DB) http.HandlerFunc {
 
 func Login(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		// Проверка метода запроса
 		if r.Method != http.MethodPost {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 
-		var logoPass model.User
+		var logoPass model.Login
 
 		if err := json.NewDecoder(r.Body).Decode(&logoPass); err != nil {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -88,6 +90,14 @@ func Login(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Генерация токена
+		token, err := utils.GenerateJWT(user.Email)
+
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
 		// Сравнение пароля
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(logoPass.Password))
 
@@ -96,7 +106,21 @@ func Login(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		// Отправка данных пользователя клиенту
+		json.NewEncoder(w).Encode(model.LoginResponse{
+			Status: http.StatusOK,
+			Token: token,
+			User: model.UserResponse{
+				ID: user.ID,
+				Email: user.Email,
+				Name: user.Name,
+				Surname: user.Surname,
+				MiddleName: user.MiddleName,
+				BirthDate: user.BirthDate,
+				PhoneNumber: user.PhoneNumber,
+				IsVerified: user.IsVerified,
+			},
+		})
 	}
 }
 

@@ -5,9 +5,13 @@ import (
 	"go-start-project/db"
 	"go-start-project/handler"
 	"net/http"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load()
+
 	database := db.Connect("localDB.sqlite")
 
     defer database.Close()
