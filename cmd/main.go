@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-start-project/db"
 	"go-start-project/handler"
+	"go-start-project/middleware"
 	"net/http"
 
 	"github.com/joho/godotenv"
@@ -18,10 +19,11 @@ func main() {
 
     db.InitSchema(database)
 
-	// Auth routes
-	http.HandleFunc("/register", db.CORS(handler.Register(database)))
-	http.HandleFunc("/login", db.CORS(handler.Login(database)))
-	http.HandleFunc("/getUsers", db.CORS(handler.GetAllUsers(database)))
+	// Проверяем корсы и авторизован ли пользователь
+	http.HandleFunc("/user/register", middleware.CORS(handler.Register(database)))
+	http.HandleFunc("/user/login", middleware.CORS(handler.Login(database)))
+	http.HandleFunc("/user/getById", middleware.CORS(middleware.AuthCheck(handler.GetUserById(database))))
+	http.HandleFunc("/user/getAllUsers", middleware.CORS(middleware.AuthCheck(handler.GetAllUsers(database))))
 
 	fmt.Println("Server successfully started")
 	http.ListenAndServe(":8080", nil)

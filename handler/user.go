@@ -7,6 +7,7 @@ import (
 	"go-start-project/service"
 	"go-start-project/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
@@ -83,7 +84,7 @@ func Login(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Получение пользователя по email
-		user, err := service.GetUserHashedPassword(db, logoPass.Email)
+		user, err := service.GetUserByEmail(db, logoPass.Email)
 
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -124,9 +125,38 @@ func Login(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func GetUserById(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Проверка метода запроса
+		if r.Method != http.MethodGet {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Получаем ID и сразу же преобразуем его в формат int
+		id, _ := strconv.Atoi(r.URL.Query().Get("id"))
+
+		user, err := service.GetUserById(db, id)
+
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		}
+
+		json.NewEncoder(w).Encode(user)
+	}
+}
+
 func GetAllUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
+		// Проверка метода запроса
+		if r.Method != http.MethodGet {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
 
 		// Получение всех пользователей
 		users, err := service.GetAllUsers(db)

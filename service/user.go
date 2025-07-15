@@ -15,21 +15,21 @@ func Register(db *sql.DB, user *model.User) error {
     return nil
 }
 
-func GetAllUsers(db *sql.DB) ([]model.User, error) {
-	rows, err := db.Query("SELECT * FROM users")
-
+func GetAllUsers(db *sql.DB) ([]model.UserResponse, error) {
+	rows, err := db.Query("SELECT id, name, surname, middle_name, birth_date, phone_number, email, is_verified FROM users")
+	
 	if err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
 
-	users := make([]model.User, 0)
+	users := make([]model.UserResponse, 0)
 
 	for rows.Next() {
-		var u model.User
+		var u model.UserResponse
 
-		if err := rows.Scan(&u.ID, &u.Name, &u.Surname, &u.MiddleName, &u.BirthDate, &u.PhoneNumber, &u.Email, &u.Password, &u.ConfirmPassword, &u.IsVerified, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Surname, &u.MiddleName, &u.BirthDate, &u.PhoneNumber, &u.Email, &u.IsVerified); err != nil {
 			return nil, err
 		}
 		
@@ -39,13 +39,25 @@ func GetAllUsers(db *sql.DB) ([]model.User, error) {
 	return users, nil
 }
 
-func GetUserHashedPassword(db *sql.DB, email string) (model.User, error) {
+func GetUserByEmail(db *sql.DB, email string) (model.User, error) {
 	var user model.User
 
 	row := db.QueryRow("SELECT * FROM users WHERE email=?", email)
 
 	if err := row.Scan(&user.ID, &user.Name, &user.Surname, &user.MiddleName, &user.BirthDate, &user.PhoneNumber, &user.Email, &user.Password, &user.ConfirmPassword, &user.IsVerified, &user.CreatedAt); err != nil {
 		return model.User{}, err
+	}
+
+	return user, nil
+}
+
+func GetUserById(db *sql.DB, id int) (model.UserResponse, error) {
+	var user model.UserResponse
+
+	row := db.QueryRow("SELECT id, name, surname, middle_name, birth_date, phone_number, email, is_verified FROM users WHERE id=?", id)
+
+	if err := row.Scan(&user.ID, &user.Name, &user.Surname, &user.MiddleName, &user.BirthDate, &user.PhoneNumber, &user.Email, &user.IsVerified); err != nil {
+		return model.UserResponse{}, err
 	}
 
 	return user, nil
