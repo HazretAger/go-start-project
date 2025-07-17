@@ -17,14 +17,33 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-func GenerateJWT(payload model.JWTPayload) (string, error) {
-    claims := jwt.MapClaims{
+func GetAccessAndRefreshTokens(payload model.JWTPayload) (model.Tokens, error) {
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
         "sub": payload.Sub,
 		"email": payload.Email,
 		"is_verified": payload.IsVerified,
         "exp":   time.Now().Add(time.Hour * 24).Unix(), // срок действия 24 часа
 		"iat": time.Now().Unix(), // время создания токена
-    }
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+    }).SignedString([]byte(os.Getenv("JWT_SECRET")))
+
+	if err != nil {
+		return model.Tokens{}, err
+	}
+
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "sub": payload.Sub,
+		"email": payload.Email,
+		"is_verified": payload.IsVerified,
+        "exp":   time.Now().Add((time.Hour * 24) * 30).Unix(), // срок действия 30 дней
+		"iat": time.Now().Unix(), // время создания токена
+    }).SignedString([]byte(os.Getenv("JWT_SECRET")))
+
+	if err != nil {
+		return model.Tokens{}, err
+	}
+	
+    return model.Tokens{
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }

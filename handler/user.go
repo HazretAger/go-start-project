@@ -8,6 +8,7 @@ import (
 	"go-start-project/utils"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
@@ -91,9 +92,9 @@ func Login(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Генерация токена
-		token, err := utils.GenerateJWT(model.JWTPayload{
-			Sub: int64(user.ID),
+		// Генерация access и refresh токена
+		tokens, err := utils.GetAccessAndRefreshTokens(model.JWTPayload{
+			Sub: user.ID,
 			Email: user.Email,
 			IsVerified: user.IsVerified,
 		})
@@ -111,10 +112,21 @@ func Login(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Установка refresh токена в cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:     "refresh_token",
+			Value:    tokens.RefreshToken,
+			Path:     "/",
+			HttpOnly: true,
+			// Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			Expires:  time.Now().Add(30 * 24 * time.Hour),
+		})
+
 		// Отправка данных пользователя клиенту
 		json.NewEncoder(w).Encode(model.LoginResponse{
 			Status: http.StatusOK,
-			Token: token,
+			Token: tokens.AccessToken,
 			User: model.UserResponse{
 				ID: user.ID,
 				Email: user.Email,
