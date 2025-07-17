@@ -22,8 +22,8 @@ func main() {
 	// Проверяем корсы и авторизован ли пользователь
 	http.HandleFunc("/user/register", middleware.CORS(handler.Register(database)))
 	http.HandleFunc("/user/login", middleware.CORS(handler.Login(database)))
-	http.HandleFunc("/user/getById", middleware.CORS(middleware.AuthCheck(handler.GetUserById(database))))
-	http.HandleFunc("/user/getAllUsers", middleware.CORS(middleware.AuthCheck(handler.GetAllUsers(database))))
+	http.HandleFunc("/user/getById", middleware.CORS(middleware.Protected(handler.GetUserById(database))))
+	http.HandleFunc("/user/getAllUsers", middleware.CORS(middleware.Protected(handler.GetAllUsers(database))))
 
 	fmt.Println("Server successfully started")
 	http.ListenAndServe(":8080", nil)

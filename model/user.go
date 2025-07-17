@@ -37,3 +37,9 @@ type LoginResponse struct {
 	Token string `json:"token"`
     User UserResponse `json:"user"`
 }
+
+type JWTPayload struct {
+	Email string `json:"email"`
+	Sub int64 `json:"sub"`
+	IsVerified bool `json:"is_verified"`
+}
