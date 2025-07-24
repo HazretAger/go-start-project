@@ -8,8 +8,8 @@ import (
 	"go-start-project/utils"
 	"net/http"
 	"strconv"
-	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -67,78 +67,81 @@ func Register(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func Login(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+func Login(c *gin.Context) {
+	db := c.MustGet("db").(*sql.DB)
+	var logoPass model.Login
 
-		// Проверка метода запроса
-		if r.Method != http.MethodPost {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
-
-		var logoPass model.Login
-
-		if err := json.NewDecoder(r.Body).Decode(&logoPass); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		// Получение пользователя по email
-		user, err := service.GetUserByEmail(db, logoPass.Email)
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-			return
-		}
-
-		// Генерация access и refresh токена
-		tokens, err := utils.GetAccessAndRefreshTokens(model.JWTPayload{
-			Sub: user.ID,
-			Email: user.Email,
-			IsVerified: user.IsVerified,
+	if err := c.ShouldBindBodyWithJSON(&logoPass); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": http.StatusBadRequest,
+			"message": "Incorrect JSON",
 		})
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		// Сравнение пароля
-		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(logoPass.Password))
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-
-		// Установка refresh токена в cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    tokens.RefreshToken,
-			Path:     "/",
-			HttpOnly: true,
-			// Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			Expires:  time.Now().Add(30 * 24 * time.Hour),
-		})
-
-		// Отправка данных пользователя клиенту
-		json.NewEncoder(w).Encode(model.LoginResponse{
-			Status: http.StatusOK,
-			Token: tokens.AccessToken,
-			User: model.UserResponse{
-				ID: user.ID,
-				Email: user.Email,
-				Name: user.Name,
-				Surname: user.Surname,
-				MiddleName: user.MiddleName,
-				BirthDate: user.BirthDate,
-				PhoneNumber: user.PhoneNumber,
-				IsVerified: user.IsVerified,
-			},
-		})
+		return
 	}
+
+	// Получение пользователя по email
+	user, err := service.GetUserByEmail(db, logoPass.Email)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": http.StatusNotFound,
+			"message": "User not found",
+		})
+		return
+	}
+
+	// Генерация access и refresh токена
+	tokens, err := utils.GetAccessAndRefreshTokens(model.JWTPayload{
+		Sub: user.ID,
+		Email: user.Email,
+		IsVerified: user.IsVerified,
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": http.StatusInternalServerError,
+			"message": "Error with token",
+		})
+		return
+	}
+
+	// Сравнение пароля
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(logoPass.Password))
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": http.StatusUnauthorized,
+			"message": "User's unauthorized",
+		})
+		return
+	}
+
+	// Установка refresh токена в cookie
+	c.SetCookie(
+		"refresh_token", 
+		tokens.RefreshToken,
+		30 * 24 * 60 * 60, 
+		"/",
+		"",
+		false,
+		true,
+	)
+
+	// Отправка данных пользователя клиенту
+	c.JSON(http.StatusUnauthorized, gin.H{
+		"status": http.StatusOK,
+		"token": tokens.AccessToken,
+		"user": model.UserResponse{
+			ID: user.ID,
+			Email: user.Email,
+			Name: user.Name,
+			Surname: user.Surname,
+			MiddleName: user.MiddleName,
+			BirthDate: user.BirthDate,
+			PhoneNumber: user.PhoneNumber,
+			IsVerified: user.IsVerified,
+		},
+	})
 }
 
 func GetUserById(db *sql.DB) http.HandlerFunc {
