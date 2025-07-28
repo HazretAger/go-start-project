@@ -22,6 +22,7 @@ func InitSchema(db *sql.DB) {
             is_verified BOOLEAN NOT NULL DEFAULT FALSE,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_email ON users(email);`,
         // добавляй сюда другие таблицы
     }
 

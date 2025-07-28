@@ -31,7 +31,7 @@ func main() {
 		authorized.GET("/user/getAllUsers", handler.GetAllUsers)
 	}
 
-	router.GET("/login", handler.Login)
+	router.POST("/login", handler.Login)
 	router.POST("/register", handler.Register)
 
 	router.Run()
