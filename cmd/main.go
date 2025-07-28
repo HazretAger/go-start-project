@@ -21,13 +21,18 @@ func main() {
 	router := gin.Default()
 
 	router.Use(middleware.CORS())
-	router.Use(middleware.Protected())
 	router.Use(middleware.WithDB(database))
 
-	router.GET("/user/login", handler.Login)
-	router.POST("/user/register", handler.Register)
-	router.GET("/user/getById", handler.GetUserById)
-	router.GET("/user/getAllUsers", handler.GetAllUsers)
+	authorized := router.Group("/")
+
+	authorized.Use(middleware.Protected())
+	{
+		authorized.GET("/user/getById", handler.GetUserById)
+		authorized.GET("/user/getAllUsers", handler.GetAllUsers)
+	}
+
+	router.GET("/login", handler.Login)
+	router.POST("/register", handler.Register)
 
 	router.Run()
 }
