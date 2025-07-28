@@ -18,21 +18,16 @@ func main() {
 
     db.InitSchema(database)
 
-	// Проверяем корсы и авторизован ли пользователь
-	// http.HandleFunc("/user/register", middleware.CORS(handler.Register(database)))
-	// http.HandleFunc("/user/getById", middleware.CORS(middleware.Protected(handler.GetUserById(database))))
-	// http.HandleFunc("/user/getAllUsers", middleware.CORS(middleware.Protected(handler.GetAllUsers(database))))
-
-	// fmt.Println("Server successfully started")
-	// http.ListenAndServe(":8080", nil)
-
-
 	router := gin.Default()
 
 	router.Use(middleware.CORS())
+	router.Use(middleware.Protected())
 	router.Use(middleware.WithDB(database))
 
 	router.GET("/user/login", handler.Login)
+	router.POST("/user/register", handler.Register)
+	router.GET("/user/getById", handler.GetUserById)
+	router.GET("/user/getAllUsers", handler.GetAllUsers)
 
 	router.Run()
 }

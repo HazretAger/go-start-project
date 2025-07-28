@@ -16,5 +16,7 @@ func CORS() gin.HandlerFunc{
         if c.Request.Method == "OPTIONS" {
             return
         }
+
+        c.Next()
 	}
 }

@@ -6,19 +6,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func Protected(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
+func Protected() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.Request.Header.Get("Authorization")
 
 		if authHeader == "" {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status": http.StatusUnauthorized,
+				"message": "User's unauthorized",
+			})
+			c.Abort()
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Berare ")
+		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		tokenStr = strings.TrimSpace(tokenStr)
 
 		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
@@ -31,7 +36,11 @@ func Protected(handler http.HandlerFunc) http.HandlerFunc {
 
 		if err != nil || !token.Valid {
 			if err != nil || !token.Valid {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"status": http.StatusUnauthorized,
+					"message": "User's unauthorized",
+				})
+				c.Abort()
 				return
 			}
 		}
@@ -39,17 +48,25 @@ func Protected(handler http.HandlerFunc) http.HandlerFunc {
 		claims, ok := token.Claims.(jwt.MapClaims)
 
 		if !ok {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status": http.StatusUnauthorized,
+				"message": "User's unauthorized",
+			})
+			c.Abort()
 			return
 		}
 
 		if exp, ok := claims["exp"].(float64); ok {
 			if int64(exp) < time.Now().Unix() {
-				http.Error(w, "Token expired", http.StatusUnauthorized)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"status": http.StatusUnauthorized,
+					"message": "Token is expired",
+				})
+				c.Abort()
 				return
 			}
 		}
 
-        handler(w, r)
+		c.Next()
 	}
 }

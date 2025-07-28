@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"encoding/json"
 	"go-start-project/model"
 	"go-start-project/service"
 	"go-start-project/utils"
@@ -14,57 +13,68 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func Register(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Проверка метода запроса
-		if r.Method != http.MethodPost {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+func Register(c *gin.Context) {
+	db := c.MustGet("db").(*sql.DB)
 
-		var user model.User
+	var user model.User
 
-		// Декодирование данных пользователя из тела запроса
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		// Проверка что пользователь с таким email уже существует
-		isUserExists, _ := service.IsUserExists(db, user.Email)
-
-		if isUserExists {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		// Валидация данных пользователя
-		validate := validator.New()
-		err := validate.Struct(user)
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		// Хеширование пароля
-		hashedPass, err := utils.HashPassword(user.Password)
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		user.Password = hashedPass
-		
-		// Регистрация пользователя
-		if err := service.Register(db, &user); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
+	// Декодирование данных пользователя из тела запроса
+	if err := c.ShouldBindBodyWithJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": http.StatusBadRequest,
+			"message": "Decoding JSON error	",
+		})
+		return
 	}
+
+	isUserExists, _ := service.IsUserExists(db, user.Email)
+
+	if isUserExists {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": http.StatusBadRequest,
+			"message": "User already exists",
+		})
+		return
+	}
+
+	// Валидация данных пользователя
+	validate := validator.New()
+	err := validate.Struct(user)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": http.StatusBadRequest,
+			"message": "Validate error",
+		})
+		return
+	}
+
+	// Хеширование пароля
+	hashedPass, err := utils.HashPassword(user.Password)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": http.StatusInternalServerError,
+			"message": "Error with password hashing",
+		})
+		return
+	}
+
+	user.Password = hashedPass
+	
+	// Регистрация пользователя
+	if err := service.Register(db, &user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": http.StatusInternalServerError,
+			"message": "Register error",
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"status": http.StatusCreated,
+		"message": "User created",
+	})
 }
 
 func Login(c *gin.Context) {
@@ -144,48 +154,47 @@ func Login(c *gin.Context) {
 	})
 }
 
-func GetUserById(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+func GetUserById(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
 
-		// Проверка метода запроса
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+	db := c.MustGet("db").(*sql.DB)
 
-		// Получаем ID и сразу же преобразуем его в формат int
-		id, _ := strconv.Atoi(r.URL.Query().Get("id"))
+	// Получаем ID и сразу же преобразуем его в формат int
+	id, _ := strconv.Atoi(c.Query("id"))
 
-		user, err := service.GetUserById(db, id)
+	user, err := service.GetUserById(db, id)
 
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		}
-
-		json.NewEncoder(w).Encode(user)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": http.StatusNotFound,
+			"message": "Decoding JSON error	",
+		})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": http.StatusOK,
+		"user": user,
+	})
 }
 
-func GetAllUsers(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+func GetAllUsers(c *gin.Context) {
+	db := c.MustGet("db").(*sql.DB)
 
-		// Проверка метода запроса
-		if r.Method != http.MethodGet {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-			return
-		}
+	// Получение всех пользователей
+	users, err := service.GetAllUsers(db)
 
-		// Получение всех пользователей
-		users, err := service.GetAllUsers(db)
-
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		// Отправка данных пользователей клиенту
-		json.NewEncoder(w).Encode(users)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": http.StatusInternalServerError,
+			"message": "Internal server error",
+		})
+		return
 	}
+
+	// Отправка данных пользователей клиенту
+	c.JSON(http.StatusOK, gin.H{
+		"status": http.StatusOK,
+		"users": users,
+	})
 }
